@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Image Deblurring Project</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <script>
+        // MathJax for rendering LaTeX equations on the explanation page
+        window.MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']],
+            processEscapes: true
+          },
+          svg: {
+            fontCache: 'global'
+          }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        canvas { 
+            border: 1px solid #e2e8f0; 
+            border-radius: 0;
+            background-color: white; 
+            image-rendering: pixelated; /* Ensures blocky upscaling */
+        }
+        .control-panel { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
+        .label { display: block; margin-bottom: 0.5rem; font-weight: 500; color: #475569; }
+        input[type="range"] { width: 100%; }
+        .btn { display: inline-block; padding: 0.75rem 1.5rem; border-radius: 0.5rem; background-color: #4f46e5; color: white; font-weight: 600; text-align: center; cursor: pointer; transition: background-color 0.2s; }
+        .btn:hover { background-color: #4338ca; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #4f46e5; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 2rem auto; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .nav-link { padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; transition: background-color 0.2s, color 0.2s; }
+        .nav-link.active { background-color: #4f46e5; color: white; }
+        .nav-link:not(.active):hover { background-color: #eef2ff; }
+        .explanation-content { max-width: 800px; margin: 0 auto; background: white; padding: 2rem; border-radius: 0.5rem; border: 1px solid #e2e8f0; }
+        .explanation-content h2 { font-size: 1.875rem; font-weight: bold; margin-top: 1.5rem; margin-bottom: 1rem; border-bottom: 1px solid #ddd; padding-bottom: 0.5rem;}
+        .explanation-content h3 { font-size: 1.25rem; font-weight: bold; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        .explanation-content p { line-height: 1.75; margin-bottom: 1rem; }
+        .explanation-content code { background-color: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', Courier, monospace; }
+        .explanation-content ol { list-style-type: decimal; margin-left: 1.5rem; margin-bottom: 1rem; }
+        .explanation-content li { margin-bottom: 0.5rem; }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-bold text-slate-900">Interactive Image Deblurring Project</h1>
+            <p class="mt-2 text-lg text-slate-600">A Linear Algebra Application</p>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="flex justify-center items-center bg-white p-2 rounded-lg shadow-sm mb-10 space-x-2">
+            <a class="nav-link active" data-page="page-qr">QR Code Deblurring</a>
+            <a class="nav-link" data-page="page-pixel">Pixel Art Restoration</a>
+            <a class="nav-link" data-page="page-general">General Image Deblurring</a>
+            <a class="nav-link" data-page="page-advanced-astro">Advanced Astronomy</a>
+            <a class="nav-link" data-page="page-explanation">The Math Explained</a>
+        </nav>
+
+        <!-- Page Content -->
+        <main>
+            <!-- QR Code Deblurring Page -->
+            <div id="page-qr" class="page">
+                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="control-panel">
+                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Step 1: Create & Blur QR Code</h2>
+                        <div class="space-y-6">
+                            <div><label for="qr-text" class="label">QR Code Text:</label><input type="text" id="qr-text" value="Linear Algebra Rocks!" class="w-full p-2 border rounded-md"><button id="generate-qr" class="btn mt-2 w-full">Generate New QR Code</button></div>
+                            <canvas id="canvas-sharp-qr" width="256" height="256"></canvas>
+                            <div class="space-y-4 pt-4 border-t"><h3 class="text-xl font-semibold">Blur Controls</h3><div><label for="blur-type-qr" class="label">Blur Type:</label><select id="blur-type-qr" class="w-full p-2 border rounded-md"><option value="gaussian">Gaussian Blur</option><option value="motion">Motion Blur</option></select></div><div id="gaussian-controls-qr"><label for="blur-sigma-qr" class="label">Blur Amount (Sigma): <span id="blur-sigma-val-qr">3</span></label><input type="range" id="blur-sigma-qr" min="1" max="10" value="3" step="0.5"></div><div id="motion-controls-qr" class="hidden"><label for="blur-length-qr" class="label">Motion Length: <span id="blur-length-val-qr">15</span></label><input type="range" id="blur-length-qr" min="1" max="50" value="15"><label for="blur-angle-qr" class="label">Motion Angle: <span id="blur-angle-val-qr">45</span>°</label><input type="range" id="blur-angle-qr" min="0" max="180" value="45"></div><button id="apply-blur-qr" class="btn w-full">Apply Blur</button></div>
+                        </div>
+                    </div>
+                    <div class="control-panel">
+                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Step 2: Deblur QR Code</h2>
+                        <canvas id="canvas-blurry-qr" width="256" height="256"></canvas>
+                        <div class="space-y-4 pt-4 border-t mt-6"><h3 class="text-xl font-semibold">Deblur Controls</h3><div><label for="deblur-type-qr" class="label">Assumed Blur Type:</label><select id="deblur-type-qr" class="w-full p-2 border rounded-md"><option value="gaussian">Gaussian Blur</option><option value="motion">Motion Blur</option></select></div><div id="deblur-gaussian-controls-qr"><label for="deblur-sigma-qr" class="label">Guess Sigma: <span id="deblur-sigma-val-qr">3</span></label><input type="range" id="deblur-sigma-qr" min="1" max="10" value="3" step="0.5"></div><div id="deblur-motion-controls-qr" class="hidden"><label for="deblur-length-qr" class="label">Guess Length: <span id="deblur-length-val-qr">15</span></label><input type="range" id="deblur-length-qr" min="1" max="50" value="15"><label for="deblur-angle-qr" class="label">Guess Angle: <span id="deblur-angle-val-qr">45</span>°</label><input type="range" id="deblur-angle-qr" min="0" max="180" value="45"></div><div><label for="deblur-iterations-qr" class="label">Iterations: <span id="deblur-iterations-val-qr">20</span></label><input type="range" id="deblur-iterations-qr" min="1" max="50" value="20"></div><div class="flex items-center"><input type="checkbox" id="qr-optimization" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked><label for="qr-optimization" class="ml-2 block text-sm text-gray-900">Enable Ringing Suppression</label></div><button id="apply-deblur-qr" class="btn w-full">Attempt Deblur</button></div>
+                    </div>
+                    <div class="control-panel">
+                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Step 3: Final Result</h2>
+                        <div class="space-y-6"><div id="loader-deblur-qr" class="loader"></div><div><label class="label">Deblurred Grayscale Image:</label><canvas id="canvas-deconvolved-qr" width="256" height="256"></canvas></div>
+                        <div class="space-y-4 pt-4 border-t"><h3 class="text-xl font-semibold">Blocky QR Code Reconstruction</h3><label for="qr-version-qr" class="label">Assumed QR Version (Modules Across):</label><select id="qr-version-qr" class="w-full p-2 border rounded-md"><option value="21">Version 1 (21x21)</option><option value="25" selected>Version 2 (25x25)</option><option value="29">Version 3 (29x29)</option><option value="33">Version 4 (33x33)</option><option value="37">Version 5 (37x37)</option></select><label for="threshold-level-qr" class="label">Threshold Level: <span id="threshold-level-val-qr">0.5</span></label><input type="range" id="threshold-level-qr" min="0" max="1" value="0.5" step="0.01"><button id="apply-reconstruction-qr" class="btn w-full">Reconstruct QR Code</button></div>
+                        <div><label class="label">Restored Blocky Image:</label><canvas id="canvas-final-qr" width="256" height="256"></canvas></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pixel Art Restoration Page -->
+            <div id="page-pixel" class="page hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="control-panel">
+                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Step 1: Load & Blur Pixel Art</h2>
+                        <div class="space-y-6">
+                            <div><label class="label">Upload Sharp Pixel Art:</label><input type="file" id="upload-sharp-pixel" class="w-full text-sm"></div>
+                            <canvas id="canvas-sharp-pixel" width="256" height="256" class="bg-slate-200"></canvas>
+                            <div class="space-y-4 pt-4 border-t"><h3 class="text-xl font-semibold">Blur Controls</h3><div><label for="blur-type-pixel" class="label">Blur Type:</label><select id="blur-type-pixel" class="w-full p-2 border rounded-md"><option value="gaussian">Gaussian Blur</option><option value="motion">Motion Blur</option></select></div><div id="gaussian-controls-pixel"><label for="blur-sigma-pixel" class="label">Blur Amount (Sigma): <span id="blur-sigma-val-pixel">3</span></label><input type="range" id="blur-sigma-pixel" min="1" max="10" value="3" step="0.5"></div><div id="motion-controls-pixel" class="hidden"><label for="blur-length-pixel" class="label">Motion Length: <span id="blur-length-val-pixel">15</span></label><input type="range" id="blur-length-pixel" min="1" max="50" value="15"><label for="blur-angle-pixel" class="label">Motion Angle: <span id="blur-angle-val-pixel">45</span>°</label><input type="range" id="blur-angle-pixel" min="0" max="180" value="45"></div><button id="apply-blur-pixel" class="btn w-full">Apply Blur</button></div>
+                        </div>
+                    </div>
+                    <div class="control-panel">
+                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Step 2: Deblur Image</h2>
+                        <canvas id="canvas-blurry-pixel" width="256" height="256"></canvas>
+                        <div class="space-y-4 pt-4 border-t mt-6"><h3 class="text-xl font-semibold">Deblur Controls</h3><div><label for="deblur-type-pixel" class="label">Assumed Blur Type:</label><select id="deblur-type-pixel" class="w-full p-2 border rounded-md"><option value="gaussian">Gaussian Blur</option><option value="motion">Motion Blur</option></select></div><div id="deblur-gaussian-controls-pixel"><label for="deblur-sigma-pixel" class="label">Guess Sigma: <span id="deblur-sigma-val-pixel">3</span></label><input type="range" id="deblur-sigma-pixel" min="1" max="10" value="3" step="0.5"></div><div id="deblur-motion-controls-pixel" class="hidden"><label for="deblur-length-pixel" class="label">Guess Length: <span id="deblur-length-val-pixel">15</span></label><input type="range" id="deblur-length-pixel" min="1" max="50" value="15"><label for="deblur-angle-pixel" class="label">Guess Angle: <span id="deblur-angle-val-pixel">45</span>°</label><input type="range" id="deblur-angle-pixel" min="0" max="180" value="45"></div><div><label for="deblur-iterations-pixel" class="label">Iterations: <span id="deblur-iterations-val-pixel">20</span></label><input type="range" id="deblur-iterations-pixel" min="1" max="50" value="20"></div><button id="apply-deblur-pixel" class="btn w-full">Attempt Deblur</button></div>
+                    </div>
+                    <div class="control-panel">
+                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Step 3: Final Result</h2>
+                        <div class="space-y-6"><div id="loader-deblur-pixel" class="loader"></div><div><label class="label">Deblurred Image:</label><canvas id="canvas-deconvolved-pixel" width="256" height="256"></canvas></div>
+                        <div class="space-y-4 pt-4 border-t"><h3 class="text-xl font-semibold">Pixel Art Reconstruction</h3><label for="pixel-grid-size-pixel" class="label">Assumed Pixel Grid Size: <span id="pixel-grid-size-val-pixel">32</span>x32</label><input type="range" id="pixel-grid-size-pixel" min="8" max="128" value="32" step="1"><button id="apply-reconstruction-pixel" class="btn w-full">Reconstruct Pixel Art</button></div>
+                        <div><label class="label">Restored Blocky Image:</label><canvas id="canvas-final-pixel" width="256" height="256"></canvas></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- General Image Deblurring Page -->
+            <div id="page-general" class="page hidden">
+                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="control-panel">
+                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Step 1: Load & Blur Image</h2>
+                        <div class="space-y-6">
+                            <div><label class="label">Upload Sharp Image:</label><input type="file" id="upload-sharp-general" class="w-full text-sm"></div>
+                            <canvas id="canvas-sharp-general" width="256" height="256" class="bg-slate-200"></canvas>
+                            <div class="space-y-4 pt-4 border-t"><h3 class="text-xl font-semibold">Blur Controls</h3><div><label for="blur-type-general" class="label">Blur Type:</label><select id="blur-type-general" class="w-full p-2 border rounded-md"><option value="gaussian">Gaussian Blur</option><option value="motion">Motion Blur</option></select></div><div id="gaussian-controls-general"><label for="blur-sigma-general" class="label">Blur Amount (Sigma): <span id="blur-sigma-val-general">3</span></label><input type="range" id="blur-sigma-general" min="1" max="10" value="3" step="0.5"></div><div id="motion-controls-general" class="hidden"><label for="blur-length-general" class="label">Motion Length: <span id="blur-length-val-general">15</span></label><input type="range" id="blur-length-general" min="1" max="50" value="15"><label for="blur-angle-general" class="label">Motion Angle: <span id="blur-angle-val-general">45</span>°</label><input type="range" id="blur-angle-general" min="0" max="180" value="45"></div><button id="apply-blur-general" class="btn w-full">Apply Blur</button></div>
+                        </div>
+                    </div>
+                    <div class="control-panel">
+                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Step 2: Deblur Image</h2>
+                        <canvas id="canvas-blurry-general" width="256" height="256" class="bg-slate-200"></canvas>
+                        <div class="space-y-4 pt-4 border-t mt-6"><h3 class="text-xl font-semibold">Deblur Controls</h3><div><label for="deblur-type-general" class="label">Assumed Blur Type:</label><select id="deblur-type-general" class="w-full p-2 border rounded-md"><option value="gaussian">Gaussian Blur</option><option value="motion">Motion Blur</option></select></div><div id="deblur-gaussian-controls-general"><label for="deblur-sigma-general" class="label">Guess Sigma: <span id="deblur-sigma-val-general">3</span></label><input type="range" id="deblur-sigma-general" min="1" max="10" value="3" step="0.5"></div><div id="deblur-motion-controls-general" class="hidden"><label for="deblur-length-general" class="label">Guess Length: <span id="deblur-length-val-general">15</span></label><input type="range" id="deblur-length-general" min="1" max="50" value="15"><label for="deblur-angle-general" class="label">Guess Angle: <span id="deblur-angle-val-general">45</span>°</label><input type="range" id="deblur-angle-general" min="0" max="180" value="45"></div><div><label for="deblur-iterations-general" class="label">Iterations: <span id="deblur-iterations-val-general">20</span></label><input type="range" id="deblur-iterations-general" min="1" max="50" value="20"></div><button id="apply-deblur-general" class="btn w-full">Attempt Deblur</button></div>
+                    </div>
+                    <div class="control-panel">
+                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Step 3: Final Result</h2>
+                        <div class="space-y-6"><div id="loader-deblur-general" class="loader"></div><div><label class="label">Deblurred Image:</label><canvas id="canvas-deconvolved-general" width="256" height="256" class="bg-slate-200"></canvas></div></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Advanced Astronomy Page -->
+            <div id="page-advanced-astro" class="page hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="control-panel">
+                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Step 1: Ground Truth & Simulation</h2>
+                         <div><label class="label">Upload Sharp Astronomy Image:</label><input type="file" id="upload-sharp-astro" class="w-full text-sm"></div>
+                        <canvas id="canvas-sharp-astro" width="256" height="256" class="bg-slate-200"></canvas>
+                        <div class="space-y-4 pt-4 border-t mt-4">
+                            <h3 class="text-xl font-semibold">Simulation Controls</h3>
+                             <div><label for="sim-frames" class="label">Number of Frames: <span id="sim-frames-val">20</span></label><input type="range" id="sim-frames" min="5" max="50" value="20"></div>
+                             <div><label for="sim-blur-sigma" class="label">Constant Blur (Sigma): <span id="sim-blur-sigma-val">2.5</span></label><input type="range" id="sim-blur-sigma" min="1" max="5" value="2.5" step="0.1"></div>
+                             <div><label for="sim-shift" class="label">Max Shift (pixels): <span id="sim-shift-val">5</span></label><input type="range" id="sim-shift" min="0" max="15" value="5"></div>
+                             <div><label for="sim-noise" class="label">Noise Level: <span id="sim-noise-val">0.01</span></label><input type="range" id="sim-noise" min="0" max="0.1" value="0.01" step="0.005"></div>
+                             <button id="generate-frames-astro" class="btn w-full">Generate Blurry Frames</button>
+                        </div>
+                    </div>
+                    <div class="control-panel">
+                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Step 2: Observation & Reconstruction</h2>
+                        <div>
+                            <label class="label">Simulated Observation (Live View):</label>
+                            <canvas id="canvas-animated-astro" width="256" height="256" class="bg-black"></canvas>
+                        </div>
+                         <div class="space-y-4 pt-4 border-t mt-6">
+                            <h3 class="text-xl font-semibold">Reconstruction Controls</h3>
+                            <div><label for="deblur-iterations-astro" class="label">Deconvolution Iterations: <span id="deblur-iterations-val-astro">15</span></label><input type="range" id="deblur-iterations-astro" min="1" max="50" value="15"></div>
+                            <button id="apply-reconstruction-astro" class="btn w-full">Run Multi-Frame Reconstruction</button>
+                        </div>
+                    </div>
+                    <div class="control-panel">
+                        <h2 class="text-2xl font-bold mb-4 border-b pb-2">Step 3: Final Reconstructed Image</h2>
+                        <div id="loader-deblur-astro" class="loader"></div>
+                        <div><label class="label">Aligned & Stacked Image (Noise Reduced):</label><canvas id="canvas-stacked-astro" width="256" height="256"></canvas></div>
+                        <div><label class="label">Final Deconvolved Image:</label><canvas id="canvas-final-astro" width="256" height="256"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Explanation Page -->
+            <div id="page-explanation" class="page hidden">
+                 <div class="explanation-content">
+                    <h1>The Linear Algebra Behind Image Deblurring</h1>
+                    <p>At its core, blurring an image is a mathematical operation that can be described using linear algebra. Understanding this allows us to systematically attempt to reverse the process, which is known as deconvolution or deblurring.</p>
+                    
+                    <h2>1. Representing Images as Vectors</h2>
+                    <p>Computers see images as a grid of pixels, where each pixel has a numerical value for its brightness. To use linear algebra, we "unroll" this grid into a single, very long column vector. Each element of the vector corresponds to a single pixel's value. For a color image, we would have separate vectors for the Red, Green, and Blue channels.</p>
+                    <p>For example, a simple 3x3 grayscale image can be transformed like this:</p>
+                    <p>$$
+                    \begin{bmatrix} 10 & 20 & 30 \\ 40 & 50 & 60 \\ 70 & 80 & 90 \end{bmatrix}
+                    \quad \longrightarrow \quad
+                    \mathbf{x} = \begin{bmatrix} 10 \\ 20 \\ 30 \\ 40 \\ 50 \\ 60 \\ 70 \\ 80 \\ 90 \end{bmatrix}
+                    $$</p>
+                    
+                    <h2>2. The Blur as a Matrix Transformation</h2>
+                    <p>A blur is a type of **convolution**. This means each pixel's new value is a weighted average of itself and its neighbors. The set of weights is called the **kernel** (or Point Spread Function, PSF). For example, a simple motion blur kernel might average pixels along a line.</p>
+                    <p>Crucially, the entire convolution operation can be represented by a single, large transformation matrix, which we can call $H$. When this matrix multiplies our image vector $\mathbf{x}$, the result is a new vector $\mathbf{b}$ representing the blurred image.</p>
+                    <p>$$\mathbf{b} = H \mathbf{x}$$</p>
+                    <p>Each row in the matrix $H$ is constructed to calculate the value for one specific pixel in the output. It contains the kernel's weights, shifted to the correct positions.</p>
+
+                    <h2>3. Deblurring: The Richardson-Lucy Algorithm</h2>
+                    <p>Since blurring is just $\mathbf{b} = H \mathbf{x}$, it seems like we should be able to deblur by calculating $\mathbf{x} = H^{-1}\mathbf{b}$. However, as explained below, the matrix $H$ is ill-conditioned, and its inverse is unstable and amplifies noise. We need a more clever, iterative approach.</p>
+                    <p>The **Richardson-Lucy algorithm** is a widely used iterative method based on Bayes' theorem. It doesn't try to find a perfect inverse, but instead tries to find the most probable original image $\mathbf{x}$ that would have resulted in the blurry image $\mathbf{b}$ we observe.</p>
+                    <h3>The Iterative Formula:</h3>
+                    <p>The algorithm starts with an initial guess for the sharp image (often, the blurry image itself) and refines it over several iterations. The update rule for each iteration $(k+1)$ is:</p>
+                    <p>$$
+                    \mathbf{x}^{(k+1)} = \mathbf{x}^{(k)} \odot \left( H^T * \frac{\mathbf{b}}{H * \mathbf{x}^{(k)}} \right)
+                    $$</p>
+                    <h3>Breaking it Down:</h3>
+                    <ol>
+                        <li>$H * \mathbf{x}^{(k)}$: **Re-blur the current estimate.** We take our current guess for the sharp image ($\mathbf{x}^{(k)}$) and apply the known blur matrix $H$ to it.</li>
+                        <li>$\frac{\mathbf{b}}{...}$: **Calculate the error ratio.** We compare the observed blurry image ($\mathbf{b}$) to our re-blurred estimate. If our estimate is good, this ratio will be close to a matrix of all 1s. Where it's different, it indicates an error.</li>
+                        <li>$H^T * ...$: **Apply the "correction."** We correlate the error ratio with the transpose of the blur matrix, $H^T$. This step effectively spreads the correction factor back across the image in a way that reverses the original blur.</li>
+                        <li>$\mathbf{x}^{(k)} \odot ...$: **Update the estimate.** We multiply our previous estimate by the correction factor (element-wise multiplication, $\odot$) to get our new, improved estimate for the sharp image, $\mathbf{x}^{(k+1)}$.</li>
+                    </ol>
+                    <p>By repeating this process, the estimate $\mathbf{x}$ gets closer and closer to the true, sharp image.</p>
+                    
+                     <h2>4. Reconstruction: Prior Knowledge in Action</h2>
+                    <p>After deconvolution, we have a grayscale image that is sharper but may have soft edges or artifacts. To get a perfect, scannable QR code or clean pixel art, we must enforce our "prior knowledge" about the image's structure. This is done through a process of downsampling and thresholding.</p>
+                    <h3>The Linear Algebra of Averaging</h3>
+                    <p>Your intuition was correct: we are essentially looking at the average color within each block (or "module"). This averaging operation is a linear transformation. We can think of it as a **dot product**. </p>
+                    <p>If we have a module of $N$ pixels from the deconvolved image, represented by a vector $\mathbf{v}_{module}$, we can find its average brightness by taking the dot product with a special vector, $\mathbf{m}_{avg}$:</p>
+                    <p>$$
+                    \text{Average} = \mathbf{m}_{avg} \cdot \mathbf{v}_{module} \quad \text{where} \quad \mathbf{m}_{avg} = \begin{bmatrix} 1/N \\ 1/N \\ \vdots \\ 1/N \end{bmatrix}
+                    $$</p>
+                    <p>This linear operation projects the high-dimensional pixel data from the module down to a single scalar value representing its average brightness. For color pixel art, this is done independently for the Red, Green, and Blue channels.</p>
+                    <h3>The Non-Linear Decision</h3>
+                    <p>The final step is to decide the final color of that module. For QR codes, this is a **thresholding** operation, which is a simple but critical **non-linear** function:</p>
+                    <p>$$
+                    \text{Final Module Value} = 
+                    \begin{cases} 
+                    \text{White} & \text{if Average} > \text{Threshold} \\
+                    \text{Black} & \text{if Average} \leq \text{Threshold}
+                    \end{cases}
+                    $$</p>
+                    <p>For color pixel art, we simply use the calculated average color as the final color for the entire block. By applying this process, we convert the fuzzy, grayscale deconvolved image into a clean, blocky, and correct final image.</p>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    // --- GLOBAL UTILITY FUNCTIONS AND STATE---
+    let astroFrames = [];
+    let animationInterval = null;
+
+    function getImageDataAsFloat(canvas) {
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const floatData = new Float32Array(imageData.data.length);
+        for(let i = 0; i < imageData.data.length; i++) {
+            floatData[i] = imageData.data[i];
+        }
+        return { data: floatData, width: canvas.width, height: canvas.height };
+    }
+
+    function putFloatDataToCanvas(canvas, floatImage) {
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const uint8Data = new Uint8ClampedArray(floatImage.data);
+        const imageData = new ImageData(uint8Data, floatImage.width, floatImage.height);
+        ctx.putImageData(imageData, 0, 0);
+    }
+    
+    function loadImageToCanvas(file, canvas, callback) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                if (callback) callback();
+            }
+            img.src = e.target.result;
+        }
+        reader.readAsDataURL(file);
+    }
+    
+    function createGaussianKernel(sigma) {
+        const size = Math.ceil(sigma * 6);
+        const kernelSize = size % 2 === 0 ? size + 1 : size;
+        const kernel = Array(kernelSize).fill(0).map(() => Array(kernelSize).fill(0));
+        const half = Math.floor(kernelSize / 2);
+        let sum = 0;
+        for (let y = -half; y <= half; y++) {
+            for (let x = -half; x <= half; x++) {
+                const value = Math.exp(-(x * x + y * y) / (2 * sigma * sigma));
+                kernel[y + half][x + half] = value;
+                sum += value;
+            }
+        }
+        for (let y = 0; y < kernelSize; y++) {
+            for (let x = 0; x < kernelSize; x++) {
+                kernel[y][x] /= sum;
+            }
+        }
+        return kernel;
+    }
+    
+    function createMotionKernel(length, angle) {
+        const kernelSize = Math.ceil(length) % 2 === 0 ? Math.ceil(length) + 1 : Math.ceil(length);
+        const kernel = Array(kernelSize).fill(0).map(() => Array(kernelSize).fill(0));
+        const half = Math.floor(kernelSize / 2);
+        const rad = angle * Math.PI / 180;
+        const dx = Math.cos(rad);
+        const dy = Math.sin(rad);
+        for (let i = 0; i < length; i++) {
+            const x = Math.round(half + dx * (i - length / 2));
+            const y = Math.round(half + dy * (i - length / 2));
+            if (x >= 0 && x < kernelSize && y >= 0 && y < kernelSize) {
+                kernel[y][x] = 1;
+            }
+        }
+        const sum = kernel.flat().reduce((a, b) => a + b, 0);
+        if (sum > 0) {
+            for (let y = 0; y < kernelSize; y++) {
+                for (let x = 0; x < kernelSize; x++) {
+                    kernel[y][x] /= sum;
+                }
+            }
+        }
+        return kernel;
+    }
+    
+    function convolveFloat(sourceImage, kernel) {
+        const { data, width, height } = sourceImage;
+        const resultData = new Float32Array(data.length);
+        const kernelSize = kernel.length;
+        const half = Math.floor(kernelSize / 2);
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                let r = 0, g = 0, b = 0;
+                for (let ky = 0; ky < kernelSize; ky++) {
+                    for (let kx = 0; kx < kernelSize; kx++) {
+                        const sy = Math.min(height - 1, Math.max(0, y + ky - half));
+                        const sx = Math.min(width - 1, Math.max(0, x + kx - half));
+                        const srcIndex = (sy * width + sx) * 4;
+                        const kVal = kernel[ky][kx];
+                        r += data[srcIndex] * kVal;
+                        g += data[srcIndex + 1] * kVal;
+                        b += data[srcIndex + 2] * kVal;
+                    }
+                }
+                const dstIndex = (y * width + x) * 4;
+                resultData[dstIndex] = r; resultData[dstIndex + 1] = g; resultData[dstIndex + 2] = b; resultData[dstIndex + 3] = 255;
+            }
+        }
+        return { data: resultData, width, height };
+    }
+    
+    function richardsonLucy(blurryImage, kernel, iterations, useQrOptimization) {
+        const { width, height } = blurryImage;
+        let latentImage = { data: new Float32Array(blurryImage.data), width, height };
+        const flippedKernel = kernel.map(row => [...row].reverse()).reverse();
+        for (let i = 0; i < iterations; i++) {
+            const reblurred = convolveFloat(latentImage, kernel);
+            const errorRatio = { data: new Float32Array(blurryImage.data.length), width, height };
+            for (let j = 0; j < blurryImage.data.length; j += 4) {
+                errorRatio.data[j] = blurryImage.data[j] / (reblurred.data[j] || 1e-6);
+                errorRatio.data[j + 1] = blurryImage.data[j + 1] / (reblurred.data[j + 1] || 1e-6);
+                errorRatio.data[j + 2] = blurryImage.data[j + 2] / (reblurred.data[j + 2] || 1e-6);
+            }
+            const correctionFactor = convolveFloat(errorRatio, flippedKernel);
+            for (let j = 0; j < latentImage.data.length; j += 4) {
+                latentImage.data[j] *= correctionFactor.data[j];
+                latentImage.data[j+1] *= correctionFactor.data[j+1];
+                latentImage.data[j+2] *= correctionFactor.data[j+2];
+            }
+            if (useQrOptimization) {
+                for (let j = 0; j < latentImage.data.length; j += 4) {
+                    const avg = (latentImage.data[j] + latentImage.data[j+1] + latentImage.data[j+2]) / 3;
+                    const value = avg > 127.5 ? 255 : 0;
+                    latentImage.data[j] = value; latentImage.data[j+1] = value; latentImage.data[j+2] = value;
+                }
+            }
+        }
+        return latentImage;
+    }
+
+    // --- PAGE SETUP AND NAVIGATION ---
+    
+    function setupPage(pagePrefix) {
+        const sharpCanvas = document.getElementById(`canvas-sharp-${pagePrefix}`);
+        const blurryCanvas = document.getElementById(`canvas-blurry-${pagePrefix}`);
+        const deconvolvedCanvas = document.getElementById(`canvas-deconvolved-${pagePrefix}`);
+        const blurTypeSelect = document.getElementById(`blur-type-${pagePrefix}`);
+        const deblurTypeSelect = document.getElementById(`deblur-type-${pagePrefix}`);
+
+        if (!sharpCanvas) return;
+        
+        const uploadInput = document.getElementById(`upload-sharp-${pagePrefix}`);
+        if(uploadInput) {
+             uploadInput.addEventListener('change', (e) => {
+                if(e.target.files && e.target.files[0]) {
+                    loadImageToCanvas(e.target.files[0], sharpCanvas);
+                }
+            });
+        }
+        
+        blurTypeSelect.addEventListener('change', () => {
+            document.getElementById(`gaussian-controls-${pagePrefix}`).classList.toggle('hidden', blurTypeSelect.value !== 'gaussian');
+            document.getElementById(`motion-controls-${pagePrefix}`).classList.toggle('hidden', blurTypeSelect.value !== 'motion');
+        });
+        const blurSigmaSlider = document.getElementById(`blur-sigma-${pagePrefix}`);
+        if(blurSigmaSlider) blurSigmaSlider.addEventListener('input', e => document.getElementById(`blur-sigma-val-${pagePrefix}`).textContent = e.target.value);
+        
+        const blurLengthSlider = document.getElementById(`blur-length-${pagePrefix}`);
+        if(blurLengthSlider){
+             blurLengthSlider.addEventListener('input', e => document.getElementById(`blur-length-val-${pagePrefix}`).textContent = e.target.value);
+             document.getElementById(`blur-angle-${pagePrefix}`).addEventListener('input', e => document.getElementById(`blur-angle-val-${pagePrefix}`).textContent = e.target.value);
+        }
+        document.getElementById(`apply-blur-${pagePrefix}`).addEventListener('click', () => {
+            let kernel;
+            if (blurTypeSelect.value === 'gaussian') {
+                kernel = createGaussianKernel(parseFloat(document.getElementById(`blur-sigma-${pagePrefix}`).value));
+            } else {
+                kernel = createMotionKernel(parseInt(document.getElementById(`blur-length-${pagePrefix}`).value), parseInt(document.getElementById(`blur-angle-${pagePrefix}`).value));
+            }
+            const sourceImage = getImageDataAsFloat(sharpCanvas);
+            const blurredData = convolveFloat(sourceImage, kernel);
+            putFloatDataToCanvas(blurryCanvas, blurredData);
+        });
+
+        deblurTypeSelect.addEventListener('change', () => {
+            document.getElementById(`deblur-gaussian-controls-${pagePrefix}`).classList.toggle('hidden', deblurTypeSelect.value !== 'gaussian');
+            document.getElementById(`deblur-motion-controls-${pagePrefix}`).classList.toggle('hidden', deblurTypeSelect.value !== 'motion');
+        });
+        const deblurSigmaSlider = document.getElementById(`deblur-sigma-${pagePrefix}`);
+        if(deblurSigmaSlider) deblurSigmaSlider.addEventListener('input', e => document.getElementById(`deblur-sigma-val-${pagePrefix}`).textContent = e.target.value);
+        
+        const deblurLengthSlider = document.getElementById(`deblur-length-${pagePrefix}`);
+        if(deblurLengthSlider){
+            deblurLengthSlider.addEventListener('input', e => document.getElementById(`deblur-length-val-${pagePrefix}`).textContent = e.target.value);
+            document.getElementById(`deblur-angle-${pagePrefix}`).addEventListener('input', e => document.getElementById(`deblur-angle-val-${pagePrefix}`).textContent = e.target.value);
+        }
+        document.getElementById(`deblur-iterations-${pagePrefix}`).addEventListener('input', e => document.getElementById(`deblur-iterations-val-${pagePrefix}`).textContent = e.target.value);
+        document.getElementById(`apply-deblur-${pagePrefix}`).addEventListener('click', () => {
+            const loader = document.getElementById(`loader-deblur-${pagePrefix}`);
+            if (loader) loader.style.display = 'block';
+            setTimeout(() => {
+                let kernel;
+                if (deblurTypeSelect.value === 'gaussian') {
+                    kernel = createGaussianKernel(parseFloat(document.getElementById(`deblur-sigma-${pagePrefix}`).value));
+                } else {
+                    kernel = createMotionKernel(parseInt(document.getElementById(`deblur-length-${pagePrefix}`).value), parseInt(document.getElementById(`deblur-angle-${pagePrefix}`).value));
+                }
+                const iterations = parseInt(document.getElementById(`deblur-iterations-${pagePrefix}`).value);
+                const qrOptCheckbox = document.getElementById('qr-optimization');
+                const useQrOptimization = pagePrefix === 'qr' && qrOptCheckbox ? qrOptCheckbox.checked : false;
+                const blurryData = getImageDataAsFloat(blurryCanvas);
+                const deblurredData = richardsonLucy(blurryData, kernel, iterations, useQrOptimization);
+                putFloatDataToCanvas(deconvolvedCanvas, deblurredData);
+                if(loader) loader.style.display = 'none';
+            }, 50);
+        });
+
+        if (pagePrefix === 'qr') {
+            document.getElementById('qr-version-qr').addEventListener('change', (e) => {});
+            document.getElementById('threshold-level-qr').addEventListener('input', e => document.getElementById('threshold-level-val-qr').textContent = parseFloat(e.target.value).toFixed(2));
+            function drawFinderPattern(ctx, x, y, moduleSize) {
+                const pattern = [[1,1,1,1,1,1,1],[1,0,0,0,0,0,1],[1,0,1,1,1,0,1],[1,0,1,1,1,0,1],[1,0,1,1,1,0,1],[1,0,0,0,0,0,1],[1,1,1,1,1,1,1]];
+                for (let row = 0; row < 7; row++) {
+                    for (let col = 0; col < 7; col++) {
+                        ctx.fillStyle = pattern[row][col] === 1 ? 'black' : 'white';
+                        ctx.fillRect(x + col * moduleSize, y + row * moduleSize, moduleSize, moduleSize);
+                    }
+                }
+            }
+            document.getElementById('apply-reconstruction-qr').addEventListener('click', () => {
+                const sourceData = getImageDataAsFloat(deconvolvedCanvas);
+                const { width, height } = sourceData;
+                const qrVersionModules = parseInt(document.getElementById('qr-version-qr').value);
+                const moduleSize = width / qrVersionModules;
+                const threshold = parseFloat(document.getElementById('threshold-level-qr').value) * 255;
+                const finalCanvas = document.getElementById('canvas-final-qr');
+                const ctx = finalCanvas.getContext('2d');
+                ctx.clearRect(0,0,width, height);
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0,0,width,height);
+                drawFinderPattern(ctx, 0, 0, moduleSize);
+                drawFinderPattern(ctx, (qrVersionModules - 7) * moduleSize, 0, moduleSize);
+                drawFinderPattern(ctx, 0, (qrVersionModules - 7) * moduleSize, moduleSize);
+                for (let row = 0; row < qrVersionModules; row++) {
+                    for (let col = 0; col < qrVersionModules; col++) {
+                        const inTopLeft = (row < 7 && col < 7);
+                        const inTopRight = (row < 7 && col >= qrVersionModules - 7);
+                        const inBottomLeft = (row >= qrVersionModules - 7 && col < 7);
+                        if (inTopLeft || inTopRight || inBottomLeft) continue;
+                        const startX = Math.floor(col * moduleSize);
+                        const startY = Math.floor(row * moduleSize);
+                        let sum = 0, count = 0;
+                        for (let my = 0; my < moduleSize && startY + my < height; my++) {
+                            for (let mx = 0; mx < moduleSize && startX + mx < width; mx++) {
+                                const index = ((startY + my) * width + (startX + mx)) * 4;
+                                sum += (sourceData.data[index] + sourceData.data[index+1] + sourceData.data[index+2]) / 3;
+                                count++;
+                            }
+                        }
+                        const avg = sum / count;
+                        ctx.fillStyle = avg > threshold ? 'white' : 'black';
+                        ctx.fillRect(startX, startY, moduleSize, moduleSize);
+                    }
+                }
+            });
+        }
+
+        if (pagePrefix === 'pixel') {
+            document.getElementById('pixel-grid-size-pixel').addEventListener('input', e => document.getElementById('pixel-grid-size-val-pixel').textContent = e.target.value);
+            document.getElementById('apply-reconstruction-pixel').addEventListener('click', () => {
+                const sourceData = getImageDataAsFloat(deconvolvedCanvas);
+                const { width, height } = sourceData;
+                const gridSize = parseInt(document.getElementById('pixel-grid-size-pixel').value);
+                const pixelSize = width / gridSize;
+                const finalCanvas = document.getElementById('canvas-final-pixel');
+                const ctx = finalCanvas.getContext('2d');
+                ctx.clearRect(0,0,width,height);
+
+                for (let row = 0; row < gridSize; row++) {
+                    for (let col = 0; col < gridSize; col++) {
+                        const startX = Math.floor(col * pixelSize);
+                        const startY = Math.floor(row * pixelSize);
+                        let r_sum = 0, g_sum = 0, b_sum = 0, count = 0;
+
+                        for (let py = 0; py < pixelSize && startY + py < height; py++) {
+                            for (let px = 0; px < pixelSize && startX + px < width; px++) {
+                                const index = ((startY + py) * width + (startX + px)) * 4;
+                                r_sum += sourceData.data[index];
+                                g_sum += sourceData.data[index + 1];
+                                b_sum += sourceData.data[index + 2];
+                                count++;
+                            }
+                        }
+                        const r_avg = Math.round(r_sum / count);
+                        const g_avg = Math.round(g_sum / count);
+                        const b_avg = Math.round(b_sum / count);
+                        
+                        ctx.fillStyle = `rgb(${r_avg}, ${g_avg}, ${b_avg})`;
+                        ctx.fillRect(startX, startY, pixelSize, pixelSize);
+                    }
+                }
+            });
+        }
+    }
+    
+    function setupAdvancedPage() {
+        const sharpCanvas = document.getElementById('canvas-sharp-astro');
+        const animatedCanvas = document.getElementById('canvas-animated-astro');
+        const stackedCanvas = document.getElementById('canvas-stacked-astro');
+        const finalCanvas = document.getElementById('canvas-final-astro');
+
+        ['sim-frames', 'sim-blur-sigma', 'sim-shift', 'sim-noise', 'deblur-iterations-astro'].forEach(id => {
+            const slider = document.getElementById(id);
+            const valueSpan = document.getElementById(`${id}-val`);
+            if (slider && valueSpan) {
+                slider.addEventListener('input', e => valueSpan.textContent = e.target.value);
+            }
+        });
+
+        document.getElementById('upload-sharp-astro').addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                loadImageToCanvas(e.target.files[0], sharpCanvas);
+            }
+        });
+
+        document.getElementById('generate-frames-astro').addEventListener('click', () => {
+            const sourceImg = getImageDataAsFloat(sharpCanvas);
+            if (!sourceImg) {
+                alert("Please upload a sharp astronomy image first.");
+                return;
+            }
+            
+            const numFrames = parseInt(document.getElementById('sim-frames').value);
+            const blurSigma = parseFloat(document.getElementById('sim-blur-sigma').value);
+            const maxShift = parseInt(document.getElementById('sim-shift').value);
+            const noiseLevel = parseFloat(document.getElementById('sim-noise').value);
+
+            astroFrames = [];
+            // Create one constant kernel for all frames
+            const kernel = createGaussianKernel(blurSigma);
+            astroFrames.kernel = kernel; // Store the kernel for reconstruction
+
+            for (let i = 0; i < numFrames; i++) {
+                const shiftX = Math.round((Math.random() - 0.5) * 2 * maxShift);
+                const shiftY = Math.round((Math.random() - 0.5) * 2 * maxShift);
+                
+                const shiftedImg = { data: new Float32Array(sourceImg.data.length), width: sourceImg.width, height: sourceImg.height };
+                for (let y = 0; y < sourceImg.height; y++) {
+                    for (let x = 0; x < sourceImg.width; x++) {
+                        const newX = x + shiftX;
+                        const newY = y + shiftY;
+                        if (newX >= 0 && newX < sourceImg.width && newY >= 0 && newY < sourceImg.height) {
+                           const srcIdx = (y * sourceImg.width + x) * 4;
+                           const dstIdx = (newY * sourceImg.width + newX) * 4;
+                           shiftedImg.data[dstIdx] = sourceImg.data[srcIdx];
+                           shiftedImg.data[dstIdx+1] = sourceImg.data[srcIdx+1];
+                           shiftedImg.data[dstIdx+2] = sourceImg.data[srcIdx+2];
+                           shiftedImg.data[dstIdx+3] = 255;
+                        }
+                    }
+                }
+                
+                const blurred = convolveFloat(shiftedImg, kernel);
+
+                 for(let j=0; j < blurred.data.length; j+=4) {
+                    const noise = (Math.random() - 0.5) * noiseLevel * 255;
+                    blurred.data[j] += noise;
+                    blurred.data[j+1] += noise;
+                    blurred.data[j+2] += noise;
+                }
+                
+                astroFrames.push({ frame: blurred, shiftX, shiftY });
+            }
+
+            if (animationInterval) clearInterval(animationInterval);
+            let frameIndex = 0;
+            animationInterval = setInterval(() => {
+                if (astroFrames.length > 0) {
+                    putFloatDataToCanvas(animatedCanvas, astroFrames[frameIndex].frame);
+                    frameIndex = (frameIndex + 1) % astroFrames.length;
+                }
+            }, 100);
+        });
+
+        document.getElementById('apply-reconstruction-astro').addEventListener('click', () => {
+            if (astroFrames.length === 0 || !astroFrames.kernel) {
+                alert("Please generate blurry frames first.");
+                return;
+            }
+            const loader = document.getElementById('loader-deblur-astro');
+            loader.style.display = 'block';
+
+            setTimeout(() => {
+                const {width, height} = astroFrames[0].frame;
+                const stackedImage = { data: new Float32Array(width * height * 4), width, height};
+
+                astroFrames.forEach(({frame, shiftX, shiftY}) => {
+                    for (let y = 0; y < height; y++) {
+                        for (let x = 0; x < width; x++) {
+                            const srcX = x - shiftX;
+                            const srcY = y - shiftY;
+                            if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
+                                const srcIdx = (srcY * width + srcX) * 4;
+                                const dstIdx = (y * width + x) * 4;
+                                stackedImage.data[dstIdx] += frame.data[srcIdx];
+                                stackedImage.data[dstIdx+1] += frame.data[srcIdx+1];
+                                stackedImage.data[dstIdx+2] += frame.data[srcIdx+2];
+                            }
+                        }
+                    }
+                });
+                
+                for (let i = 0; i < stackedImage.data.length; i++) {
+                    stackedImage.data[i] /= astroFrames.length;
+                }
+                 stackedImage.data.forEach((val, i) => { if ((i+1)%4 === 0) stackedImage.data[i] = 255; });
+
+                putFloatDataToCanvas(stackedCanvas, stackedImage);
+                
+                const iterations = parseInt(document.getElementById('deblur-iterations-astro').value);
+                stackedImage.data.forEach((v,i) => {if(v<0) stackedImage.data[i]=0;}); 
+                
+                const finalImage = richardsonLucy(stackedImage, astroFrames.kernel, iterations, false);
+                putFloatDataToCanvas(finalCanvas, finalImage);
+
+                loader.style.display = 'none';
+            }, 50);
+
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const navLinks = document.querySelectorAll('.nav-link');
+        const pages = document.querySelectorAll('.page');
+
+        function switchPage(pageId) {
+            pages.forEach(page => page.classList.toggle('hidden', page.id !== pageId));
+            navLinks.forEach(link => {
+                link.classList.toggle('active', link.dataset.page === pageId);
+            });
+            if (pageId === 'page-explanation') {
+                setTimeout(() => MathJax.typeset(), 0);
+            }
+        }
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                switchPage(e.target.dataset.page);
+            });
+        });
+
+        function generateQR() {
+            new QRious({ element: document.getElementById('canvas-sharp-qr'), value: document.getElementById('qr-text').value, size: 256, background: 'white', foreground: 'black' });
+        }
+        document.getElementById('generate-qr').addEventListener('click', generateQR);
+        generateQR();
+        
+        setupPage('qr');
+        setupPage('pixel');
+        setupPage('general');
+        setupAdvancedPage();
+    });
+    </script>
+</body>
+</html>
