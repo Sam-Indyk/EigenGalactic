@@ -63,7 +63,8 @@ def load_galaxy_zoo_data(size, num_images):
         
         for file_path in catalog['file_loc'][batch_start:batch_end]:
             try:
-                full_image_path = os.path.join(data_root, file_path)
+                # Newer galaxy-datasets versions already include data_root in file_loc.
+                full_image_path = file_path if os.path.exists(file_path) else os.path.join(data_root, file_path)
                 img = Image.open(full_image_path)
                 img = img.convert('L')
                 img = img.resize(size, Image.Resampling.LANCZOS)
